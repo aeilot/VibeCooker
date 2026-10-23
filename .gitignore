@@ -1,0 +1,10 @@
+node_modules/
+.next/
+.env*
+!.env.example
+*.tsbuildinfo
+.eve/
+test-results/
+playwright-report/
+.playwright-mcp/
+.DS_Store
