@@ -1,60 +1,60 @@
 # VibeCooker
 
-一个家庭料理风格的 Next.js 网页：选择现有食材或拍照识材，让 ReAct Agent 创作料理，在烹饪过程中接收人类反馈，并记住用户明确保存的口味偏好。
+A home-cooking app built with Next.js. Choose ingredients you have or identify them from a photo, let a ReAct agent create recipes, give feedback as you cook, and explicitly save the taste preferences you want it to remember.
 
-## 启动
+## Getting started
 
-需要 Node.js 24 或更新版本。
+Requires Node.js 24 or later.
 
 ```bash
 npm install
 npm run dev
 ```
 
-打开 [本地厨房](http://localhost:3000)。在「我的厨房」填写提供商、账户可用的模型 ID 和 API Key。支持 OpenRouter 和 DeepSeek 官方接口；不使用平台共享 Key，也不依赖开发者环境变量。
+Open [your local kitchen](http://localhost:3000). In “My Kitchen,” enter your provider, a model ID available to your account, and your API key. OpenRouter and the official DeepSeek API are supported. The app uses your own key, with no shared platform key or developer environment variables required.
 
-- 生成菜谱和调整步骤需要模型支持工具调用。
-- OpenRouter 使用完整的 `提供商/模型名称` ID；选择支持工具调用的模型，拍照还需要图片输入及结构化输出能力。
-- DeepSeek 默认使用 `deepseek-flash`，通过官方 Chat Completions 接口调用，关闭思考模式以适配工具循环。照片使用 JSON 输出并在本地执行 Schema 校验；其他 DeepSeek 模型的视觉能力可能不同。
-- 「测试连接」只验证文本调用；工具和视觉能力在使用对应功能时检查。
-- 没有 Key 时可以体验明确标注的固定模板演示。演示菜谱不作为实际烹饪指导，不模拟识图。
+- Recipe generation and step adjustments require a model that supports tool calling.
+- For OpenRouter, use the full `provider/model-name` ID and choose a model with tool calling. Photo recognition also requires image input and structured output support.
+- DeepSeek defaults to `deepseek-flash` through the official Chat Completions API, with thinking disabled for the tool loop. Photo recognition uses JSON output with local schema validation; vision support may differ across other DeepSeek models.
+- “Test connection” checks text requests only. Tool calling and vision capabilities are checked when their respective features are used.
+- Without a key, you can try a clearly labeled demo using fixed templates. Demo recipes are not intended as actual cooking guidance, and the demo does not simulate image recognition.
 
-## 已实现
+## Features
 
-- 食材分类、选择、搜索、手动添加和移除。
-- 手机相机入口及照片上传，本机压缩后识别，逐项确认再加入食材。
-- 人数、可用时间、口味、厨具、忌口及原创料理开关。
-- 带结构化工具的 ReAct 循环：读取厨房 → 参考料理原则 → 提交校验 → 必要时修订。
-- 可选 6 或 9 份食材子集方案，无需每道菜用完所有食材；展示用量、缺少食材、步骤与观察标准。
-- 可复算的食材齐备率、时间余量、简洁度评分和 MMR 多样性排序；详情展示相关食品化学机制及来源。
-- 单步做饭、可恢复计时器、文字和快捷反馈、剩余步骤修订、澄清问题。
-- 已完成步骤的不可覆盖检查、唯一步骤编号、已知忌口检查。
-- 评价、料理本、明确选择保存的长期口味记忆及删除。
-- 手机布局、键盘操作、原生对话框焦点管理、减少动态效果支持。
+- Browse ingredient categories, select and search ingredients, and add or remove them manually.
+- Take a photo on mobile or upload an image, compress it locally, and confirm each recognized ingredient before adding it.
+- Set servings, available time, taste preferences, cookware, dietary restrictions, and whether to allow original dishes.
+- Run a ReAct loop with structured tools: read the kitchen, consult cooking principles, submit for validation, and revise when needed.
+- Generate 6 or 9 alternatives, each using a subset of your ingredients, with quantities, missing ingredients, steps, and observable cues.
+- Inspect reproducible ingredient availability, time margin, and simplicity scores, with MMR diversity ranking and food chemistry explanations with sources.
+- Cook one step at a time with restorable timers, text and quick feedback, revisions to remaining steps, and clarification questions.
+- Validate that completed steps stay unchanged, step IDs remain unique, and known dietary restrictions are respected.
+- Rate dishes, save recipes in a cookbook, and explicitly save or delete long-term taste preferences.
+- Use mobile layouts, keyboard navigation, native dialog focus management, and reduced motion support.
 
-## 架构与边界
+## Architecture and limitations
 
-当前版本采用 Next.js App Router + React + TypeScript + AI SDK 7 `ToolLoopAgent` + Zod。前端在 `src/components/`，模型与工具在 `src/lib/server/agent.ts`，HTTP 入口在 `src/app/api/agent/route.ts`。
+The current version uses Next.js App Router, React, TypeScript, AI SDK 7 `ToolLoopAgent`, and Zod. Frontend components live in `src/components/`, model integration and tools in `src/lib/server/agent.ts`, and the HTTP endpoint in `src/app/api/agent/route.ts`.
 
-早期方案考虑了 eve 持久 Agent Runtime。首版选择按请求创建的 AI SDK 工具循环，使逐用户 BYOK 不需要把凭证序列化进后台工作流。没有暴露文件、Shell、联网检索或任意代码执行工具。
+An early design considered the eve persistent agent runtime. The first version uses an AI SDK tool loop created per request, so per-user BYOK credentials do not need to be serialized into background workflows. The agent has no file, shell, web search, or arbitrary code execution tools.
 
-所有 API 请求校验输入、限制体积和工具轮数，并设定超时。模型结果通过程序校验后才接受。工具执行轨迹只包含动作概要，不返回内部思维链。
+All API requests undergo input validation, request size and tool-round limits, and timeouts. Model outputs are accepted only after programmatic validation. Tool traces contain action summaries without exposing internal chain of thought.
 
-### 存储与凭证
+### Storage and credentials
 
-食材、厨房设置、料理进度、料理本和偏好保存在当前浏览器的 `localStorage`，有版本化 Schema 校验。刷新可恢复进度和计时目标；没有云数据库、登录、跨设备同步或多标签协调。关闭浏览器之后计时器不会在后台发通知。
+Ingredients, kitchen settings, cooking progress, the cookbook, and preferences are stored in the current browser’s `localStorage` with versioned schema validation. Refreshing restores progress and timer targets. There is no cloud database, sign-in, cross-device sync, or coordination between tabs. Timers do not send background notifications after the browser closes.
 
-API Key 仅保存在 React 会话内存中，每次请求通过 Authorization Header 送到 Next.js 服务端，再转发给选定提供商；不写入浏览器持久存储、应用日志、模型提示词或料理记录。刷新后需重新输入。正式部署应使用 HTTPS，并检查宿主平台的请求头日志策略。
+API keys stay in React session memory. Each request sends the key in an Authorization header to the Next.js server, which forwards it to the selected provider. Keys are not written to browser persistent storage, application logs, model prompts, or recipe records. You must re-enter your key after refreshing. Production deployments should use HTTPS and review the hosting platform’s request-header logging policy.
 
-照片在浏览器缩放并转换为 JPEG，传给用户配置的模型提供商；不保存在料理记录中。服务端验证图片签名和大小，结果需要用户确认。
+Photos are resized and converted to JPEG in the browser, then sent to the model provider you configure. They are not saved in recipe records. The server validates image signatures and size, and recognition results require your confirmation.
 
-### 料理与个性化
+### Cooking and personalization
 
-模型可以发明新菜，但 AI 方案没有实测保证。食材限制有提示词约束和一份有限的程序别名表；这不是完整的过敏原数据库或食品安全认证。系统不从图片推断新鲜度、安全熟度或营养数值。
+The model can invent dishes, but AI-generated plans have no guarantee of practical testing. Ingredient restrictions are enforced through prompts and a limited programmatic alias list; this is not a complete allergen database or food safety certification. The system does not infer freshness, safe doneness, or nutritional values from images.
 
-本次反馈只更新本次会话。只有用户在评价页勾选记住，文字才写入长期偏好，并在后续生成时提供给模型。当前没有训练模型、向量数据库或复杂偏好优化。
+Cooking feedback applies to the current session only. Text is stored as a long-term preference and included in future generation only when you choose to remember it on the rating screen. The app does not train a model or use a vector database or complex preference optimization.
 
-## 验证
+## Verification
 
 ```bash
 npm test
@@ -63,26 +63,26 @@ npm run build
 npm run test:e2e
 ```
 
-单元/集成测试验证忌口检查、不可覆盖已完成步骤、计划修订和 API 输入边界。Agent 测试使用 AI SDK 官方 Mock Provider，验证真正的多步工具调用、拒绝无效结果及接受修订；不产生模型费用。
+Unit and integration tests cover dietary restriction checks, protection of completed steps, plan revisions, and API input boundaries. Agent tests use the official AI SDK mock provider to verify real multi-step tool calling, rejection of invalid outputs, and acceptance of revisions without model charges.
 
-浏览器测试使用 Chrome，覆盖完整演示闭环、照片确认、Key 不持久化和手机布局。照片测试拦截模型响应；真实模型质量、供应商额度和照片识别效果需要用户自己的有效 Key 验证。
+Browser tests use Chrome and cover the complete demo flow, photo confirmation, non-persistence of API keys, and mobile layouts. Photo tests intercept model responses. Real model quality, provider quotas, and photo recognition accuracy require verification with your own valid API key.
 
-插画均为本项目原创 SVG，不是生成菜品的实拍。字体包含系统回退；Google Fonts 不可用时仍可正常显示。
+All illustrations are original SVGs created for this project, not photographs of generated dishes. Fonts include system fallbacks, so the app remains usable when Google Fonts is unavailable.
 
-提供商接入参考：[OpenRouter Quickstart](https://openrouter.ai/docs/quickstart)、[OpenRouter 结构化输出](https://openrouter.ai/docs/guides/features/structured-outputs)、[DeepSeek 工具调用](https://api-docs.deepseek.com/guides/tool_calls/)、[DeepSeek 图片理解](https://api-docs.deepseek.com/guides/vision/)。
+Provider integration references: [OpenRouter Quickstart](https://openrouter.ai/docs/quickstart), [OpenRouter structured outputs](https://openrouter.ai/docs/guides/features/structured-outputs), [DeepSeek tool calling](https://api-docs.deepseek.com/guides/tool_calls/), and [DeepSeek image understanding](https://api-docs.deepseek.com/guides/vision/).
 
-## 搭配模型与科学边界
+## Pairing model and scientific limitations
 
-每个候选选择现有食材的子集，候选彼此是替代方案。明确限制检查后，以 `Q=100*(0.45A+0.30E+0.25C)` 计算实用评分：A 为食材种类齐备率，E 为时间余量，C 为按主食材数量定义的简洁度。油盐等未选中的食材也需要确认。当前按名称和别名匹配，不核实实际克数。权重是产品启发式，不是实验验证的美味公式或个性化训练结果。
+Each candidate uses a subset of the available ingredients, and candidates are alternatives to one another. After checking explicit restrictions, the app calculates a practical score: `Q=100*(0.45A+0.30E+0.25C)`, where A is ingredient-type availability, E is time margin, and C is simplicity based on the number of main ingredients. Unselected ingredients, including oil and salt, still need confirmation. Matching currently uses names and aliases without verifying actual quantities in grams. These weights are product heuristics, not an experimentally validated formula for flavor or the result of personalized training.
 
-多样性采用逐步贪心选择：首选最高 Q，然后最大化 `0.75*(Q/100)+0.25*(1-max J)`，J 是与已选方案主食材集合的 Jaccard 相似度。当前不刻画技法导致的感官距离，低相似度也不等于更好吃。评估使用生成时的厨房快照，之后修改食材不会悄悄改变旧方案的分数。
+Diversity uses greedy selection: choose the highest Q first, then maximize `0.75*(Q/100)+0.25*(1-max J)`, where J is the Jaccard similarity between a candidate’s main ingredient set and those already selected. The model does not represent sensory differences caused by cooking techniques, and lower similarity does not imply better taste. Scores use a snapshot of the kitchen at generation time; later ingredient edits do not silently change earlier scores.
 
-食品化学说明由食材类别和技法触发，并附原文来源，属于一般机制与条件推断。尚未接入 FlavorGraph/FlavorDB 的分子组成、浓度、嗅觉阈值或实验反应参数；不计算化学相似度、反应速率、预测温度或美味概率。理论子集数量仅展示组合空间，系统不会穷举所有组合。
+Food chemistry explanations are triggered by ingredient categories and techniques and include original sources. They describe general mechanisms and conditional inferences. The app does not integrate molecular composition, concentration, odor thresholds, or experimental reaction parameters from FlavorGraph or FlavorDB. It does not calculate chemical similarity, reaction rates, predicted temperatures, or the probability of a dish tasting good. The theoretical subset count illustrates the combination space; the system does not enumerate every combination.
 
-## 国际化
+## Internationalization
 
-右上角支持简体中文／English 即时切换。语言通过独立的 `vibecooker-locale` Cookie 记住，服务端据此输出页面语言和元数据；客户端同步 `html.lang` 和标题。切换不刷新页面，不清除会话内 Key，也不修改本机厨房数据。
+Use the language switcher in the upper-right corner to switch instantly between Simplified Chinese and English. A separate `vibecooker-locale` cookie remembers the language, which the server uses for the page language and metadata. The client keeps `html.lang` and the title in sync. Switching languages does not reload the page, clear the in-memory API key, or change local kitchen data.
 
-词典位于 `src/lib/i18n/`，React 通过 `I18nProvider` / `useI18n` 读取。界面、食材分类及 178 种食材、占位符、可访问名称、错误、动态通知、演示内容、科学说明和日期均按语言显示。英文名称和常见复数可用于搜索与标准食材匹配；食材标识、Schema 枚举与保存的数据保持稳定。
+Dictionaries live in `src/lib/i18n/` and are accessed in React through `I18nProvider` and `useI18n`. The interface, ingredient categories and 178 ingredients, placeholders, accessible names, errors, live announcements, demo content, scientific explanations, and dates are localized. English names and common plurals work for search and standard ingredient matching. Ingredient IDs, schema enums, and saved data remain stable.
 
-前端在模型请求中发送经过枚举限制的 `x-ui-locale`，服务端将新菜谱、图片说明和做饭回复的语言要求传给模型，并本地化 API 错误。已有的 AI 自由文本和用户笔记保留原文，不调用模型自动翻译历史内容。真实模型是否遵从语言要求仍取决于模型表现。
+The frontend sends an enum-validated `x-ui-locale` with model requests. The server passes language requirements for new recipes, image descriptions, and cooking replies to the model and localizes API errors. Existing AI-generated free text and user notes retain their original language; historical content is not automatically translated through model calls. Compliance with the requested language still depends on the model.
